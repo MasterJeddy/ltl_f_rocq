@@ -1,0 +1,30 @@
+# Rocq/Coq build artifacts
+*.vo
+*.vok
+*.vos
+*.glob
+*.aux
+.*.aux
+*.cmi
+*.cmo
+*.cmx
+*.cmxs
+*.o
+*.ml.d
+*.mli.d
+.lia.cache
+.nia.cache
+.coq-native/
+_build/
+
+# coq_makefile generated files
+Makefile.conf
+Makefile.coq
+Makefile.coq.conf
+.Makefile.d
+
+# editor / OS
+*~
+.#*
+\#*#
+.DS_Store
