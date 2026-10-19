@@ -1720,3 +1720,75 @@ checked with the Python re-implementation of the Coq definitions (scratch only).
    `nodup`, so `C` counts duplicate values repeatedly (e.g. `f = max` has `|psv| = 2^k` as a list but
    only 2 distinct values); wrapping `nodup ui_eq_dec` around `psv` inside `ge_ltl`, as `trim` already
    does for `in_ltl`, shrinks `C` on real `f`s though not in the injective worst case.
+
+---
+
+## Entry 42
+
+**Prompt:**
+> Why does git push -u origin master
+> error: src refspec master does not match any
+> error: failed to push some refs to 'https://github.com/MasterJeddy/ltl_f_rocq.git'
+
+(followed by "yes" authorising the assistant to make the commit and write `.gitignore`.)
+
+**Response summary:**
+Diagnosed the error as an empty repository: `git log` reported "your current branch 'master'
+does not have any commits yet", `git branch -a` was empty, and all 12 files were still
+untracked (`??`). `.git/HEAD` pointed at `refs/heads/master`, a ref that does not exist until
+the first commit, so `push` had no object to resolve the `master` refspec to. Noted this is
+unrelated to the remote or to credentials.
+
+Flagged two things before committing: GitHub had created the repo with default branch `main`,
+so pushing `master` would leave two branches; and there was no `.gitignore`, so a subsequent
+`make` would have added `.vo`/`.vok`/`.vos`/`.glob`/`.aux`/`.lia.cache` artifacts.
+
+Actions taken (no `.v` files touched):
+- Wrote `.gitignore` covering Rocq build output (`*.vo`, `*.vok`, `*.vos`, `*.glob`, `*.aux`,
+  `.*.aux`, `.coq-native/`, `.lia.cache`, `.nia.cache`, OCaml `*.cm*`/`*.o`, `_build/`),
+  coq_makefile output (`Makefile.conf`, `Makefile.coq`, `Makefile.coq.conf`, `.Makefile.d`),
+  and editor/OS files.
+- Committed all 13 files as `827207c` "Initial commit: LTL and LTL_f formalization in Rocq"
+  (5158 insertions).
+- Renamed the branch `master` -> `main` (`git branch -m`) per the author's choice.
+
+The push itself failed with `fatal: could not read Username for 'https://github.com'`:
+no `credential.helper` is configured and `gh` is not installed, and git cannot prompt for
+credentials from within the assistant's shell. Gave the author the manual route to run
+themselves — create a classic PAT with `repo` scope, then
+`git remote set-url origin https://MasterJeddy@github.com/MasterJeddy/ltl_f_rocq.git`,
+`git config credential.helper store`, `git push -u origin main` — or install `gh` and run
+`gh auth login`.
+
+Also flagged that the committed `Makefile` was the coq_makefile-generated GNUMakefile whose
+line 24 is `include Makefile.conf`, a file that was never committed, so `make` would fail on
+a fresh clone; recommended tracking a `_CoqProject` instead.
+
+---
+
+## Entry 43
+
+**Prompt:**
+> I have added _CoqProject you can untrack make
+
+**Response summary:**
+Read the author's new `_CoqProject`, which contained only the load-path line
+`-Q . LTL_F_Project` and no file list, meaning `rocq makefile -f _CoqProject` would generate
+a Makefile with no build targets. Appended the 11 `.v` files to `_CoqProject`
+(`utils.v`, `real_basics.v`, `bounds.v`, `ltl.v`, `ltl_f.v`, `until_lemmas.v`, `ngbw.v`,
+`nbgw_for_ltl_f.v`, `proof2.v`, `proof3.v`, `stream_example.v`); listing order is irrelevant
+since coq_makefile derives the dependency order itself via coqdep.
+
+Untracked the generated Makefile with `git rm --cached Makefile` (left on disk) and added
+`Makefile` to `.gitignore` alongside the existing `Makefile.conf` entry.
+
+Verified rather than assumed: `rm -f Makefile Makefile.conf && rocq makefile -f _CoqProject
+-o Makefile && make -j4` compiled all 11 files from scratch and a second `make` exited 0
+("Nothing to be done for 'real-all'"). `git status` was clean afterwards, confirming
+`.gitignore` covers every artifact the build produces. Build emitted only pre-existing
+deprecation warnings, not errors: `non-reference-hint-using` at `nbgw_for_ltl_f.v:67`
+(a `using` clause applying the term `IH x Hin e1 e2`) and two
+`intuition-auto-with-star` warnings at `until_lemmas.v:138`.
+
+Committed as `b196eb0` "Build from _CoqProject instead of a committed Makefile".
+Fresh clones now build with `rocq makefile -f _CoqProject -o Makefile && make`.
