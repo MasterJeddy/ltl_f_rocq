@@ -18,6 +18,7 @@
 _build/
 
 # coq_makefile generated files
+Makefile
 Makefile.conf
 Makefile.coq
 Makefile.coq.conf
